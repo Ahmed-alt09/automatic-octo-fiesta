@@ -1,0 +1,48 @@
+name: Scan WordPress Plugins 2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip python3-pip
+
+      - name: Install Python dependencies
+        run: |
+          pip install requests tqdm semgrep
+
+      - name: Create directories
+        run: |
+          mkdir -p plugins
+          mkdir -p extracted
+          mkdir -p reports/semgrep
+
+      - name: Run plugin download script
+        run: |
+          python3 script.py
+
+      - name: Extract plugins
+        run: |
+          for file in plugins/*.zip; do
+            unzip -q "$file" -d extracted
+          done
+
+      - name: Run Semgrep scan
+        run: |
+          semgrep --config=./rules/wp-rules.yml extracted \
+          --json \
+          --output reports/semgrep/semgrep-report.json
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: reports/semgrep
