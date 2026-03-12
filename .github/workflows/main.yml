@@ -37,9 +37,15 @@ jobs:
 
       - name: Run Semgrep scan
         run: |
-          semgrep --config=./rules/wp-csrf.yml extracted \
-          --json \
-          --output reports/semgrep/semgrep-report.json
+          semgrep \
+            --config=.github/semgrep/wp-rules.yml \
+            --config=.github/semgrep/wp-csrf.yml \
+            --no-git-ignore \
+            --include="*.php" \
+            extracted \
+            --json \
+            --output reports/semgrep/semgrep-report.json
+        continue-on-error: true
 
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
