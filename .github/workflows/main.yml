@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Semgrep scan
         run: |
-          semgrep --config=auto extracted \
+          semgrep --config=./rules/wp-csrf.yml extracted \
           --json \
           --output reports/semgrep/semgrep-report.json
 
