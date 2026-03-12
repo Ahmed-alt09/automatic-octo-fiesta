@@ -1,5 +1,4 @@
 rules:
-
   # ============================================================
   # SQL INJECTION
   # ============================================================
@@ -345,7 +344,8 @@ rules:
       - pattern: eval($_REQUEST[$KEY]);
       - pattern: eval(base64_decode($_POST[$KEY]));
       - pattern: eval(base64_decode($_GET[$KEY]));
-      - pattern: eval($VAR); # requires taint trace — flag for manual review
+      # requires taint trace — flag for manual review
+      - pattern: eval($VAR);
     metadata:
       cwe: CWE-78
       category: rce
@@ -492,7 +492,8 @@ rules:
       - pattern: wp_remote_get($_GET[$KEY], ...)
       - pattern: wp_remote_get($_POST[$KEY], ...)
       - pattern: wp_remote_post($_POST[$KEY], ...)
-      - pattern: wp_remote_get($URL, ...) # flag for manual URL trace
+      # flag for manual URL trace
+      - pattern: wp_remote_get($URL, ...)
     metadata:
       cwe: CWE-98
       category: rfi
@@ -605,9 +606,9 @@ rules:
       Open Redirect: header('Location:') set with user-controlled input. Use
       wp_safe_redirect() or validate the URL against a strict allowlist.
     pattern-either:
-      - pattern: header('Location: ' . $_GET[$KEY]);
-      - pattern: header('Location: ' . $_POST[$KEY]);
-      - pattern: header("Location: " . $_GET[$KEY]);
+      - pattern: "header('Location: ' . $_GET[$KEY]);"
+      - pattern: "header('Location: ' . $_POST[$KEY]);"
+      - pattern: 'header("Location: " . $_GET[$KEY]);'
     metadata:
       cwe: CWE-601
       category: open-redirect
