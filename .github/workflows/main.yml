@@ -38,8 +38,8 @@ jobs:
       - name: Run Semgrep scan
         run: |
           semgrep \
-            --config=.github/semgrep/wp-rules.yml \
-            --config=.github/semgrep/wp-csrf.yml \
+            --config=./rules/wp-rules.yml \
+            --config=./rules/wp-csrf.yml \
             --no-git-ignore \
             --include="*.php" \
             extracted \
