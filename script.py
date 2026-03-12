@@ -8,7 +8,7 @@ PER_PAGE = 1000
 OUTPUT_DIR = "plugins"
 
 MIN_INSTALLS = 1000
-MAX_INSTALLS = 6000
+MAX_INSTALLS = 2000
 MAX_WORKERS = 30
 
 def fetch_plugins():
