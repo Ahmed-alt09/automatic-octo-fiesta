@@ -1,0 +1,881 @@
+rules:
+
+  # ============================================================
+  # SQL INJECTION
+  # ============================================================
+
+  - id: wp-sqli-wpdb-raw-get-results
+    languages: [php]
+    severity: ERROR
+    message: >
+      Potential SQL Injection: user input reaches $wpdb->get_results() without prepare().
+      Trace $query — if any part contains $_GET/$_POST/$_REQUEST/$_COOKIE data not wrapped
+      in $wpdb->prepare(), this is exploitable.
+    patterns:
+      - pattern: $WPDB->get_results($QUERY, ...)
+      - pattern-not: $WPDB->get_results($WPDB->prepare(...), ...)
+      - pattern-either:
+          - pattern-inside: |
+              $QUERY = <... $_GET[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_POST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_REQUEST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_COOKIE[...] ...>;
+              ...
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  - id: wp-sqli-wpdb-raw-query
+    languages: [php]
+    severity: ERROR
+    message: >
+      Potential SQL Injection: user input reaches $wpdb->query() without prepare().
+    patterns:
+      - pattern: $WPDB->query($QUERY)
+      - pattern-not: $WPDB->query($WPDB->prepare(...))
+      - pattern-either:
+          - pattern-inside: |
+              $QUERY = <... $_GET[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_POST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_REQUEST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_COOKIE[...] ...>;
+              ...
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  - id: wp-sqli-wpdb-raw-get-row
+    languages: [php]
+    severity: ERROR
+    message: >
+      Potential SQL Injection: user input reaches $wpdb->get_row() without prepare().
+    patterns:
+      - pattern: $WPDB->get_row($QUERY, ...)
+      - pattern-not: $WPDB->get_row($WPDB->prepare(...), ...)
+      - pattern-either:
+          - pattern-inside: |
+              $QUERY = <... $_GET[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_POST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_REQUEST[...] ...>;
+              ...
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  - id: wp-sqli-wpdb-raw-get-var
+    languages: [php]
+    severity: ERROR
+    message: >
+      Potential SQL Injection: user input reaches $wpdb->get_var() without prepare().
+    patterns:
+      - pattern: $WPDB->get_var($QUERY)
+      - pattern-not: $WPDB->get_var($WPDB->prepare(...))
+      - pattern-either:
+          - pattern-inside: |
+              $QUERY = <... $_GET[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_POST[...] ...>;
+              ...
+          - pattern-inside: |
+              $QUERY = <... $_REQUEST[...] ...>;
+              ...
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  - id: wp-sqli-orderby-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      SQL Injection via ORDER BY: $wpdb->prepare() cannot parameterize column names.
+      User-controlled ORDER BY values must use sanitize_sql_orderby() or a hardcoded allowlist.
+    pattern-either:
+      - pattern: $WPDB->get_results("... ORDER BY " . $_GET[$KEY], ...)
+      - pattern: $WPDB->get_results("... ORDER BY " . $_POST[$KEY], ...)
+      - pattern: $WPDB->get_results("... ORDER BY " . $_REQUEST[$KEY], ...)
+      - pattern: $WPDB->query("... ORDER BY " . $_GET[$KEY])
+      - pattern: $WPDB->query("... ORDER BY " . $_POST[$KEY])
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  - id: wp-sqli-prepare-misuse-interpolation
+    languages: [php]
+    severity: ERROR
+    message: >
+      Broken prepare(): user input is interpolated into the format string before prepare() runs.
+      The placeholder is never used — this is still injectable. Pass user data as separate args.
+    pattern-either:
+      - pattern: $WPDB->prepare("... $VAR ...", ...)
+      - pattern: $WPDB->prepare("... {$VAR} ...", ...)
+    metadata:
+      cwe: CWE-89
+      category: sqli
+
+  # ============================================================
+  # XSS — REFLECTED / STORED
+  # ============================================================
+
+  - id: wp-xss-echo-get
+    languages: [php]
+    severity: ERROR
+    message: >
+      Reflected XSS: $_GET value echoed without escaping. Use esc_html(), esc_attr(),
+      esc_url(), or esc_js() depending on output context.
+    pattern-either:
+      - pattern: echo $_GET[$KEY];
+      - pattern: echo $_POST[$KEY];
+      - pattern: echo $_REQUEST[$KEY];
+      - pattern: echo $_SERVER[$KEY];
+      - pattern: echo $_COOKIE[$KEY];
+      - pattern: print $_GET[$KEY];
+      - pattern: print $_POST[$KEY];
+    metadata:
+      cwe: CWE-79
+      category: xss
+
+  - id: wp-xss-add-query-arg-unescaped
+    languages: [php]
+    severity: WARNING
+    message: >
+      XSS: add_query_arg() return value echoed without esc_url(). The URL includes
+      query parameters which may contain unescaped user input.
+    patterns:
+      - pattern: echo add_query_arg(...);
+      - pattern-not: echo esc_url(add_query_arg(...));
+    metadata:
+      cwe: CWE-79
+      category: xss
+
+  - id: wp-xss-server-php-self
+    languages: [php]
+    severity: WARNING
+    message: >
+      XSS: $_SERVER['PHP_SELF'] or $_SERVER['REQUEST_URI'] echoed without escaping.
+      These values are attacker-controllable via the URL. Wrap in esc_attr() or esc_url().
+    pattern-either:
+      - pattern: echo $_SERVER['PHP_SELF'];
+      - pattern: echo $_SERVER['REQUEST_URI'];
+      - pattern: echo $_SERVER['HTTP_REFERER'];
+      - pattern: echo $_SERVER['QUERY_STRING'];
+    metadata:
+      cwe: CWE-79
+      category: xss
+
+  - id: wp-xss-inline-script-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      XSS: User input written directly into an inline <script> block without esc_js().
+      Attacker can break out of the string context and inject arbitrary JS.
+    pattern-either:
+      - pattern: echo "<script>var $VAR = \"" . $_GET[$KEY] . "\";</script>";
+      - pattern: echo "<script>var $VAR = \"" . $_POST[$KEY] . "\";</script>";
+      - pattern: echo '<script>' . $VAR . '</script>';
+    metadata:
+      cwe: CWE-79
+      category: xss
+
+  # ============================================================
+  # BROKEN ACCESS CONTROL (BAC) / MISSING CAPABILITY CHECKS
+  # ============================================================
+
+  - id: wp-bac-ajax-no-cap-check
+    languages: [php]
+    severity: WARNING
+    message: >
+      Potential Missing Authorization: wp_ajax_ hook registered. Verify the hooked function
+      contains current_user_can() — any authenticated user (including subscribers) can trigger
+      wp_ajax_ actions. is_admin() is NOT a valid substitute.
+    patterns:
+      - pattern: add_action('wp_ajax_$ACTION', $HANDLER);
+    metadata:
+      cwe: CWE-862
+      category: bac
+
+  - id: wp-bac-ajax-nopriv-sensitive
+    languages: [php]
+    severity: WARNING
+    message: >
+      wp_ajax_nopriv_ hook registered — this endpoint is accessible to unauthenticated users.
+      Verify the handler does not perform sensitive or state-changing operations without
+      explicit authorization.
+    pattern: add_action('wp_ajax_nopriv_$ACTION', $HANDLER);
+    metadata:
+      cwe: CWE-862
+      category: bac
+
+  - id: wp-bac-admin-init-no-check
+    languages: [php]
+    severity: WARNING
+    message: >
+      admin_init hook is accessible by unauthenticated users via admin-ajax.php and
+      admin-post.php. The hooked function must contain a capability check and nonce.
+    pattern: add_action('admin_init', $HANDLER);
+    metadata:
+      cwe: CWE-862
+      category: bac
+
+  - id: wp-bac-is-admin-used-for-authz
+    languages: [php]
+    severity: ERROR
+    message: >
+      is_admin() used as an authorization check — this is WRONG. is_admin() checks
+      whether the request URL is from the admin area, NOT whether the user is an
+      administrator. Any user can trigger admin-ajax.php. Use current_user_can() instead.
+    pattern: |
+      if (is_admin()) {
+        ...
+      }
+    metadata:
+      cwe: CWE-862
+      category: bac
+
+  - id: wp-bac-rest-route-no-permission-callback
+    languages: [php]
+    severity: ERROR
+    message: >
+      REST API route registered without a permission_callback, or with __return_true.
+      This makes the endpoint publicly accessible to unauthenticated users.
+    pattern-either:
+      - pattern: |
+          register_rest_route($NS, $ROUTE, array(
+            'methods'  => $M,
+            'callback' => $CB,
+          ));
+      - pattern: |
+          register_rest_route($NS, $ROUTE, array(
+            ...,
+            'permission_callback' => '__return_true',
+            ...
+          ));
+    metadata:
+      cwe: CWE-862
+      category: bac
+
+  # ============================================================
+  # CSRF — MISSING NONCE CHECKS
+  # ============================================================
+
+  - id: wp-csrf-admin-post-no-referer-check
+    languages: [php]
+    severity: WARNING
+    message: >
+      admin_post_ hook registered. Verify the hooked function calls check_admin_referer()
+      or wp_verify_nonce() to protect against CSRF. Without it, an attacker can trick an
+      admin into submitting the action unknowingly.
+    pattern: add_action('admin_post_$ACTION', $HANDLER);
+    metadata:
+      cwe: CWE-352
+      category: csrf
+
+  - id: wp-csrf-wp-verify-nonce-result-ignored
+    languages: [php]
+    severity: ERROR
+    message: >
+      CSRF Bypass: wp_verify_nonce() called but its return value is not used in a conditional
+      that terminates on failure. A discarded result provides NO protection.
+    patterns:
+      - pattern: wp_verify_nonce(...);
+      - pattern-not: |
+          if (!wp_verify_nonce(...)) { ... }
+      - pattern-not: |
+          if (wp_verify_nonce(...)) { ... }
+      - pattern-not: $VAR = wp_verify_nonce(...);
+    metadata:
+      cwe: CWE-352
+      category: csrf
+
+  - id: wp-csrf-nonce-check-conditional-on-isset
+    languages: [php]
+    severity: ERROR
+    message: >
+      CSRF Bypass: Nonce is only checked if it is present in the request. An attacker
+      can simply omit the nonce field to bypass this check entirely.
+    pattern-either:
+      - pattern: |
+          if (isset($_POST['nonce'])) {
+            check_ajax_referer(...);
+            ...
+          }
+      - pattern: |
+          if (isset($_POST[$NONCE_KEY])) {
+            wp_verify_nonce(...);
+            ...
+          }
+      - pattern: |
+          if (isset($_REQUEST[$NONCE_KEY])) {
+            check_ajax_referer(...);
+            ...
+          }
+    metadata:
+      cwe: CWE-352
+      category: csrf
+
+  # ============================================================
+  # RCE — REMOTE / LOCAL CODE EXECUTION
+  # ============================================================
+
+  - id: wp-rce-eval-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      Critical RCE: eval() called with user-controlled input. An attacker can execute
+      arbitrary PHP on the server. Remove eval() entirely and use structured data (JSON).
+    pattern-either:
+      - pattern: eval($_GET[$KEY]);
+      - pattern: eval($_POST[$KEY]);
+      - pattern: eval($_REQUEST[$KEY]);
+      - pattern: eval(base64_decode($_POST[$KEY]));
+      - pattern: eval(base64_decode($_GET[$KEY]));
+      - pattern: eval($VAR); # requires taint trace — flag for manual review
+    metadata:
+      cwe: CWE-78
+      category: rce
+
+  - id: wp-rce-shell-exec-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      Critical RCE: OS command execution function called with user input.
+      Validate all input with an allowlist and use escapeshellarg() on arguments.
+    pattern-either:
+      - pattern: exec($CMD, ...)
+      - pattern: shell_exec($CMD)
+      - pattern: system($CMD, ...)
+      - pattern: passthru($CMD, ...)
+      - pattern: proc_open($CMD, ...)
+      - pattern: popen($CMD, $MODE)
+    metadata:
+      cwe: CWE-78
+      category: rce
+
+  - id: wp-rce-call-user-func-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      Potential RCE: call_user_func() or call_user_func_array() called with a user-controlled
+      function name. Attacker can call any PHP built-in (e.g., system, phpinfo). Use an
+      allowlist of safe function names.
+    pattern-either:
+      - pattern: call_user_func($_GET[$KEY], ...)
+      - pattern: call_user_func($_POST[$KEY], ...)
+      - pattern: call_user_func($_REQUEST[$KEY], ...)
+      - pattern: call_user_func_array($_POST[$KEY], ...)
+      - pattern: call_user_func_array($_GET[$KEY], ...)
+    metadata:
+      cwe: CWE-78
+      category: rce
+
+  - id: wp-rce-file-get-contents-then-eval
+    languages: [php]
+    severity: ERROR
+    message: >
+      Critical RCE (Social Warfare pattern): Remote content fetched via user-controlled URL
+      and passed to eval(). No allow_url_include setting required for this attack path.
+    patterns:
+      - pattern: |
+          $CONTENT = file_get_contents($URL);
+          ...
+          eval($CONTENT);
+      - pattern-either:
+          - pattern-inside: |
+              $URL = $_GET[$KEY];
+              ...
+          - pattern-inside: |
+              $URL = $_POST[$KEY];
+              ...
+    metadata:
+      cwe: CWE-78
+      category: rce
+
+  # ============================================================
+  # ARBITRARY FILE UPLOAD (AFU)
+  # ============================================================
+
+  - id: wp-afu-content-type-validation-only
+    languages: [php]
+    severity: ERROR
+    message: >
+      Insecure file upload: validation relies on $_FILES['type'] (Content-Type header).
+      This is fully attacker-controlled and trivially bypassed. Use wp_check_filetype_and_ext()
+      or wp_handle_upload() instead.
+    pattern-either:
+      - pattern: $_FILES[$F]['type']
+      - pattern: $_FILES['file']['type']
+    metadata:
+      cwe: CWE-434
+      category: afu
+
+  - id: wp-afu-move-uploaded-file-no-validation
+    languages: [php]
+    severity: WARNING
+    message: >
+      Arbitrary File Upload risk: move_uploaded_file() called. Verify that
+      wp_check_filetype_and_ext() or wp_handle_upload() runs BEFORE this call,
+      and that sanitize_file_name() is applied BEFORE the extension check.
+    pattern: move_uploaded_file($TMP, $DEST)
+    metadata:
+      cwe: CWE-434
+      category: afu
+
+  - id: wp-afu-file-put-contents-user-path
+    languages: [php]
+    severity: ERROR
+    message: >
+      Arbitrary File Write: file_put_contents() with a user-controlled path or content.
+      An attacker can write a PHP webshell to a publicly accessible directory.
+    pattern-either:
+      - pattern: file_put_contents($_GET[$KEY], $CONTENT)
+      - pattern: file_put_contents($_POST[$KEY], $CONTENT)
+      - pattern: file_put_contents($PATH, $_POST[$KEY])
+      - pattern: file_put_contents($PATH, $_GET[$KEY])
+    metadata:
+      cwe: CWE-434
+      category: afu
+
+  # ============================================================
+  # LOCAL FILE INCLUSION (LFI)
+  # ============================================================
+
+  - id: wp-lfi-include-user-path
+    languages: [php]
+    severity: ERROR
+    message: >
+      Local File Inclusion: user-controlled value in include/require path. An attacker
+      can traverse to wp-config.php or any uploaded file containing PHP code.
+      Use an allowlist of valid filenames and realpath() prefix validation.
+    pattern-either:
+      - pattern: include($_GET[$KEY]);
+      - pattern: include($_POST[$KEY]);
+      - pattern: include($PATH . $_GET[$KEY] . $SUFFIX);
+      - pattern: include($PATH . $_POST[$KEY] . $SUFFIX);
+      - pattern: include_once($_GET[$KEY]);
+      - pattern: include_once($PATH . $_GET[$KEY]);
+      - pattern: require($_GET[$KEY]);
+      - pattern: require($PATH . $_GET[$KEY] . $SUFFIX);
+      - pattern: require_once($_GET[$KEY]);
+      - pattern: require_once($PATH . $_GET[$KEY]);
+    metadata:
+      cwe: CWE-98
+      category: lfi
+
+  # ============================================================
+  # REMOTE FILE INCLUSION (RFI)
+  # ============================================================
+
+  - id: wp-rfi-wp-remote-get-user-url
+    languages: [php]
+    severity: WARNING
+    message: >
+      SSRF/RFI: wp_remote_get() or wp_remote_post() called with a user-controlled URL.
+      If the response body is later passed to eval() or include(), this is RCE.
+      Even without that, it is an SSRF allowing internal network probing.
+    pattern-either:
+      - pattern: wp_remote_get($_GET[$KEY], ...)
+      - pattern: wp_remote_get($_POST[$KEY], ...)
+      - pattern: wp_remote_post($_POST[$KEY], ...)
+      - pattern: wp_remote_get($URL, ...) # flag for manual URL trace
+    metadata:
+      cwe: CWE-98
+      category: rfi
+
+  - id: wp-rfi-file-get-contents-user-url
+    languages: [php]
+    severity: WARNING
+    message: >
+      RFI/SSRF: file_get_contents() called with a user-controlled URL.
+      If the result is passed to eval() or written to an included file, this is RCE.
+    pattern-either:
+      - pattern: file_get_contents($_GET[$KEY])
+      - pattern: file_get_contents($_POST[$KEY])
+      - pattern: file_get_contents($_REQUEST[$KEY])
+    metadata:
+      cwe: CWE-98
+      category: rfi
+
+  # ============================================================
+  # SSRF
+  # ============================================================
+
+  - id: wp-ssrf-curl-user-url
+    languages: [php]
+    severity: ERROR
+    message: >
+      SSRF: curl_setopt() with CURLOPT_URL set to a user-controlled value. An attacker
+      can probe internal services, AWS metadata endpoints (169.254.169.254), or localhost.
+      Validate URL against an allowlist and block private IP ranges.
+    pattern-either:
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_GET[$KEY])
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_POST[$KEY])
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_REQUEST[$KEY])
+    metadata:
+      cwe: CWE-918
+      category: ssrf
+
+  - id: wp-ssrf-esc-url-raw-not-sufficient
+    languages: [php]
+    severity: WARNING
+    message: >
+      SSRF: esc_url_raw() does NOT block internal IP access. A URL sanitized with
+      esc_url_raw() can still point to 127.0.0.1, 169.254.169.254, or internal hosts.
+      Add explicit private IP range filtering after URL validation.
+    patterns:
+      - pattern: wp_remote_get(esc_url_raw($_POST[$KEY]), ...)
+    metadata:
+      cwe: CWE-918
+      category: ssrf
+
+  # ============================================================
+  # IDOR — INSECURE DIRECT OBJECT REFERENCE
+  # ============================================================
+
+  - id: wp-idor-get-post-user-id
+    languages: [php]
+    severity: WARNING
+    message: >
+      Potential IDOR: get_post() or get_page() called with a user-supplied ID.
+      Verify the current user owns or is authorized to access this post,
+      especially if post_status is private/draft or post_content is sensitive.
+    pattern-either:
+      - pattern: get_post(intval($_GET[$KEY]))
+      - pattern: get_post(intval($_POST[$KEY]))
+      - pattern: get_post($_GET[$KEY])
+      - pattern: get_post($_POST[$KEY])
+    metadata:
+      cwe: CWE-639
+      category: idor
+
+  - id: wp-idor-get-user-meta-user-id
+    languages: [php]
+    severity: WARNING
+    message: >
+      Potential IDOR: get_user_meta() called with a user-supplied user_id.
+      Verify the requesting user is either the owner of that user ID or has
+      manage_users capability. Any authenticated user can read another user's meta.
+    pattern-either:
+      - pattern: get_user_meta(intval($_GET[$KEY]), ...)
+      - pattern: get_user_meta(intval($_POST[$KEY]), ...)
+      - pattern: get_user_meta($_GET[$KEY], ...)
+      - pattern: get_user_meta($_POST[$KEY], ...)
+    metadata:
+      cwe: CWE-639
+      category: idor
+
+  # ============================================================
+  # OPEN REDIRECT
+  # ============================================================
+
+  - id: wp-or-wp-redirect-user-url
+    languages: [php]
+    severity: WARNING
+    message: >
+      Open Redirect: wp_redirect() called with a user-controlled URL. An attacker can
+      craft a URL on your domain that redirects to a phishing page. Use wp_safe_redirect()
+      instead, which restricts redirects to the same host by default.
+    pattern-either:
+      - pattern: wp_redirect($_GET[$KEY]);
+      - pattern: wp_redirect($_POST[$KEY]);
+      - pattern: wp_redirect($_REQUEST[$KEY]);
+    metadata:
+      cwe: CWE-601
+      category: open-redirect
+
+  - id: wp-or-header-location-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      Open Redirect: header('Location:') set with user-controlled input. Use
+      wp_safe_redirect() or validate the URL against a strict allowlist.
+    pattern-either:
+      - pattern: header('Location: ' . $_GET[$KEY]);
+      - pattern: header('Location: ' . $_POST[$KEY]);
+      - pattern: header("Location: " . $_GET[$KEY]);
+    metadata:
+      cwe: CWE-601
+      category: open-redirect
+
+  # ============================================================
+  # PRIVILEGE ESCALATION (PE) — ARBITRARY OPTIONS UPDATE
+  # ============================================================
+
+  - id: wp-pe-update-option-user-controlled-key
+    languages: [php]
+    severity: ERROR
+    message: >
+      Privilege Escalation: update_option() called with a user-controlled option name.
+      An attacker can overwrite critical options like siteurl, admin_email, or
+      default_role. The option name must be hardcoded or validated against a strict allowlist.
+      Note: sanitize_key() does NOT prevent this — admin_email passes through it unchanged.
+    pattern-either:
+      - pattern: update_option($_POST[$KEY], $VAL)
+      - pattern: update_option($_GET[$KEY], $VAL)
+      - pattern: update_option(sanitize_key($_POST[$KEY]), $VAL)
+      - pattern: update_option(sanitize_text_field($_POST[$KEY]), $VAL)
+    metadata:
+      cwe: CWE-269
+      category: privilege-escalation
+
+  - id: wp-pe-update-user-meta-user-controlled-key
+    languages: [php]
+    severity: ERROR
+    message: >
+      Privilege Escalation: update_user_meta() called with a user-controlled meta key.
+      An attacker can set wp_capabilities to grant themselves administrator role.
+      Meta key must be hardcoded or validated against a strict allowlist.
+    pattern-either:
+      - pattern: update_user_meta($UID, $_POST[$KEY], $VAL)
+      - pattern: update_user_meta($UID, $_GET[$KEY], $VAL)
+      - pattern: update_user_meta($UID, sanitize_key($_POST[$KEY]), $VAL)
+    metadata:
+      cwe: CWE-269
+      category: privilege-escalation
+
+  - id: wp-pe-wp-update-user-role-user-controlled
+    languages: [php]
+    severity: ERROR
+    message: >
+      Privilege Escalation: wp_update_user() called with a user-controlled 'role' field.
+      An attacker can elevate their own account to administrator. The role value must
+      always be hardcoded, never accepted from user input.
+    patterns:
+      - pattern: |
+          wp_update_user(array(..., 'role' => $_POST[$KEY], ...));
+      - pattern: |
+          $DATA['role'] = $_POST[$KEY];
+          ...
+          wp_update_user($DATA);
+    metadata:
+      cwe: CWE-269
+      category: privilege-escalation
+
+  # ============================================================
+  # DESERIALIZATION / PHP OBJECT INJECTION
+  # ============================================================
+
+  - id: wp-de-unserialize-user-input
+    languages: [php]
+    severity: ERROR
+    message: >
+      PHP Object Injection: unserialize() called with user-controlled input. If a POP chain
+      exists in any installed plugin (including GuzzleHTTP, Monolog, Symfony in vendor dirs),
+      this is Critical RCE. Replace PHP serialization with json_encode()/json_decode().
+    pattern-either:
+      - pattern: unserialize($_GET[$KEY])
+      - pattern: unserialize($_POST[$KEY])
+      - pattern: unserialize($_REQUEST[$KEY])
+      - pattern: unserialize($_COOKIE[$KEY])
+      - pattern: unserialize(base64_decode($_POST[$KEY]))
+      - pattern: unserialize(base64_decode($_GET[$KEY]))
+    metadata:
+      cwe: CWE-502
+      category: deserialization
+
+  - id: wp-de-maybe-unserialize-user-input
+    languages: [php]
+    severity: WARNING
+    message: >
+      PHP Object Injection: maybe_unserialize() called with a value that may originate
+      from user input. maybe_unserialize() deserializes if the data is a serialized string.
+      Verify data source — if user-supplied, this is exploitable via POP chain.
+    pattern-either:
+      - pattern: maybe_unserialize($_POST[$KEY])
+      - pattern: maybe_unserialize($_GET[$KEY])
+    metadata:
+      cwe: CWE-502
+      category: deserialization
+
+  - id: wp-de-phar-file-exists-user-path
+    languages: [php]
+    severity: WARNING
+    message: >
+      Potential Phar Deserialization: file system function with user-controlled path.
+      If the attacker can supply a phar:// wrapper, serialized phar metadata is
+      deserialized — even without unserialize() being called directly. Validate and
+      strip PHP stream wrappers from user-supplied paths.
+    pattern-either:
+      - pattern: file_exists($_GET[$KEY])
+      - pattern: file_exists($_POST[$KEY])
+      - pattern: fopen($_GET[$KEY], ...)
+      - pattern: copy($_GET[$KEY], ...)
+      - pattern: rename($_GET[$KEY], ...)
+    metadata:
+      cwe: CWE-502
+      category: deserialization
+
+  # ============================================================
+  # ARBITRARY FILE DOWNLOAD / DIRECTORY TRAVERSAL (AFD)
+  # ============================================================
+
+  - id: wp-afd-readfile-user-path
+    languages: [php]
+    severity: ERROR
+    message: >
+      Arbitrary File Download: readfile() called with a user-controlled path.
+      An attacker can traverse to wp-config.php via ../../wp-config.php.
+      Use realpath() + prefix check against uploads directory. Note: sanitize_text_field()
+      does NOT strip ../ sequences.
+    pattern-either:
+      - pattern: readfile($_GET[$KEY])
+      - pattern: readfile($_POST[$KEY])
+      - pattern: readfile($PATH . $_GET[$KEY])
+      - pattern: readfile($PATH . $_POST[$KEY])
+      - pattern: readfile(ABSPATH . $_GET[$KEY])
+      - pattern: readfile(ABSPATH . $_POST[$KEY])
+    metadata:
+      cwe: CWE-22
+      category: afd
+
+  - id: wp-afd-file-get-contents-user-path
+    languages: [php]
+    severity: ERROR
+    message: >
+      Arbitrary File Read: file_get_contents() with a user-controlled local path.
+      Attacker can read wp-config.php, .env, private keys, etc. via path traversal.
+    pattern-either:
+      - pattern: file_get_contents(ABSPATH . $_GET[$KEY])
+      - pattern: file_get_contents(ABSPATH . $_POST[$KEY])
+      - pattern: file_get_contents(WP_CONTENT_DIR . $_GET[$KEY])
+      - pattern: file_get_contents(WP_CONTENT_DIR . $_POST[$KEY])
+    metadata:
+      cwe: CWE-22
+      category: afd
+
+  # ============================================================
+  # ARBITRARY FILE DELETION (AFDEL)
+  # ============================================================
+
+  - id: wp-afdel-unlink-user-path
+    languages: [php]
+    severity: ERROR
+    message: >
+      Arbitrary File Deletion: unlink() called with a user-controlled path.
+      Deleting wp-config.php resets WordPress to fresh install, allowing an attacker
+      to immediately create a new admin account. Use realpath() + uploads dir prefix check.
+    pattern-either:
+      - pattern: unlink($_GET[$KEY])
+      - pattern: unlink($_POST[$KEY])
+      - pattern: unlink(ABSPATH . $_GET[$KEY])
+      - pattern: unlink(ABSPATH . $_POST[$KEY])
+      - pattern: unlink(WP_CONTENT_DIR . $_GET[$KEY])
+      - pattern: wp_delete_file(ABSPATH . $_GET[$KEY])
+      - pattern: wp_delete_file(ABSPATH . $_POST[$KEY])
+    metadata:
+      cwe: CWE-73
+      category: afdel
+
+  # ============================================================
+  # SENSITIVE DATA EXPOSURE (DF)
+  # ============================================================
+
+  - id: wp-df-api-key-localized-to-frontend
+    languages: [php]
+    severity: WARNING
+    message: >
+      Sensitive Data Exposure: get_option() return value (possibly an API key or secret)
+      passed to wp_localize_script() on a frontend hook. This value is visible in page
+      source to all visitors including unauthenticated users.
+    patterns:
+      - pattern: wp_localize_script($HANDLE, $OBJ, array(..., $KEY => get_option($OPT), ...));
+      - pattern-inside: |
+          add_action('wp_enqueue_scripts', $CB);
+          ...
+    metadata:
+      cwe: CWE-200
+      category: data-exposure
+
+  - id: wp-df-export-no-capability-check
+    languages: [php]
+    severity: WARNING
+    message: >
+      Sensitive Data Exposure: AJAX export handler that returns database rows.
+      Verify current_user_can() is checked before returning data — any authenticated
+      user can call wp_ajax_ actions.
+    patterns:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            $WPDB->get_results(...);
+            ...
+            wp_send_json_success($DATA);
+          }
+      - pattern-not: |
+          function $FUNC(...) {
+            ...
+            current_user_can(...);
+            ...
+          }
+    metadata:
+      cwe: CWE-200
+      category: data-exposure
+
+  # ============================================================
+  # CSV INJECTION (CSVI)
+  # ============================================================
+
+  - id: wp-csvi-fputcsv-user-data
+    languages: [php]
+    severity: WARNING
+    message: >
+      CSV Injection: fputcsv() writing user-supplied data without sanitization.
+      Values starting with =, +, -, @ will be interpreted as formulas by Excel/LibreOffice.
+      Prefix dangerous characters with a single quote or strip them before export.
+    patterns:
+      - pattern: fputcsv($HANDLE, array(..., $VAR, ...))
+      - pattern-not: fputcsv($HANDLE, array(..., sanitize_csv_value($VAR), ...))
+    metadata:
+      cwe: CWE-1236
+      category: csv-injection
+
+  # ============================================================
+  # RACE CONDITION (RC)
+  # ============================================================
+
+  - id: wp-rc-get-then-update-user-meta
+    languages: [php]
+    severity: WARNING
+    message: >
+      Race Condition: read-modify-write pattern on user meta. Two concurrent requests
+      can both read the same value before either update runs. Use an atomic SQL UPDATE
+      (e.g., UPDATE ... SET credits = credits - X WHERE credits >= X) instead of
+      get_user_meta() followed by update_user_meta().
+    patterns:
+      - pattern: |
+          $VAL = get_user_meta($UID, $KEY, true);
+          ...
+          update_user_meta($UID, $KEY, $VAL - $AMOUNT);
+    metadata:
+      cwe: CWE-362
+      category: race-condition
+
+  - id: wp-rc-get-then-update-option
+    languages: [php]
+    severity: WARNING
+    message: >
+      Race Condition: get_option() followed by update_option() is a non-atomic
+      read-modify-write. Use an atomic SQL UPDATE or a transient-based advisory lock.
+    patterns:
+      - pattern: |
+          $VAL = get_option($KEY);
+          ...
+          update_option($KEY, $NEWVAL);
+    metadata:
+      cwe: CWE-362
+      category: race-condition
