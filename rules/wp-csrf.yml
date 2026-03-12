@@ -1,0 +1,36 @@
+rules:
+  - id: wp-wpajax-csrf
+    mode: join
+    join:
+      rules:
+        - id: wpajax-actions
+          languages: [php]
+          patterns:
+            - pattern-either:
+                - pattern: add_action('$ACTION', [$UNIMPORTANT, '$HOOKFUNC']);
+                - pattern: add_action('$ACTION', '$HOOKFUNC');
+            - metavariable-regex:
+                metavariable: $ACTION
+                regex: (wp_ajax_).*
+        - id: callgraph
+          languages: [php]
+          patterns:
+            - pattern: $CALLEE(...)
+            - pattern-inside: |
+                function $CALLER(...){
+                  ...
+                }
+        - id: csrf-protection
+          languages: [php]
+          patterns:
+            - pattern: $CSRFPROTECTFUNC(...)
+            - metavariable-regex:
+                metavariable: $CSRFPROTECTFUNC
+                regex: (check_ajax_referer|check_admin_referer|wp_verify_nonce)
+      on:
+        - 'callgraph.$CALLEE !! csrf-protection.$CSRFPROTECTFUNC'
+        - 'callgraph.$CALLER --> callgraph.$CALLEE'
+        - 'callgraph.$CALLER == wpajax-actions.$HOOKFUNC'
+    message: "This ajax action does not call csrf protection functions"
+    severity: INFO
+    languages: [php]
