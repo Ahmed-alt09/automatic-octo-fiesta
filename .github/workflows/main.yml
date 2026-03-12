@@ -34,7 +34,10 @@ jobs:
           for file in plugins/*.zip; do
             unzip -q "$file" -d extracted
           done
-
+          
+      - name: Debug - list rules files
+        run: find . -name "*.yml" | grep -v node_modules
+        
       - name: Run Semgrep scan
         run: |
           semgrep \
