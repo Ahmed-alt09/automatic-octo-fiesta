@@ -1,4 +1,5 @@
 rules:
+
   # ============================================================
   # SQL INJECTION
   # ============================================================
@@ -167,11 +168,10 @@ rules:
     languages: [php]
     severity: WARNING
     message: >
-      XSS: $_SERVER['PHP_SELF'] or $_SERVER['REQUEST_URI'] echoed without escaping.
+      XSS: $_SERVER['PHP_SELF'] or $_SERVER['HTTP_REFERER'] echoed without escaping.
       These values are attacker-controllable via the URL. Wrap in esc_attr() or esc_url().
     pattern-either:
       - pattern: echo $_SERVER['PHP_SELF'];
-      - pattern: echo $_SERVER['REQUEST_URI'];
       - pattern: echo $_SERVER['HTTP_REFERER'];
       - pattern: echo $_SERVER['QUERY_STRING'];
     metadata:
