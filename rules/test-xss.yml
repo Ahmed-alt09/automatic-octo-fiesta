@@ -1,0 +1,17 @@
+rules:
+
+  - id: wp-xss-echo-in-html-attribute
+    languages: [php]
+    severity: ERROR
+    message: >
+      Reflected XSS: user input echoed inside an HTML attribute without esc_attr().
+      Attacker can break out of the attribute context using quotes and inject arbitrary
+      HTML/JS. Wrap with esc_attr() e.g. value="<?php echo esc_attr($_GET['page']); ?>"
+    pattern-either:
+      - pattern: echo $_GET[$KEY];
+      - pattern: echo $_POST[$KEY];
+      - pattern: echo $_REQUEST[$KEY];
+      - pattern: echo $_COOKIE[$KEY];
+    metadata:
+      cwe: CWE-79
+      category: xss-attribute
