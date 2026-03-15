@@ -6,8 +6,8 @@ from tqdm import tqdm
 API_URL = "https://api.wordpress.org/plugins/info/1.2/"
 PER_PAGE = 1000
 OUTPUT_DIR = "plugins"
-MIN_INSTALLS = 100
-MAX_INSTALLS = 5000
+MIN_INSTALLS = 100000
+MAX_INSTALLS = 500000
 MAX_WORKERS = 30
 
 def fetch_plugins():
