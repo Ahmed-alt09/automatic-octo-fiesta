@@ -44,6 +44,16 @@ jobs:
             --config=./rules/test-xss.yml \
             --no-git-ignore \
             --include="*.php" \
+            --exclude-dir=vendor \
+            --exclude-dir=vendor-prefixed \
+            --exclude-dir=node_modules \
+            --exclude-dir=tests \
+            --exclude="*.min.php" \
+            --exclude="*.generated.php" \
+            --timeout=30 \
+            --timeout-threshold=3 \
+            --max-memory=1000 \
+            --jobs=4 \
             extracted \
             --json \
             --output reports/semgrep/semgrep-report.json
